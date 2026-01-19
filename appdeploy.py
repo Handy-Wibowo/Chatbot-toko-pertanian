@@ -3,6 +3,79 @@ import os
 import google.generativeai as genai
 from supabase import create_client, Client
 
+# Konfigurasi Halaman (Wajib ditaruh di paling awal setelah import)
+st.set_page_config(
+    page_title="Toko Tani Suka Maju",
+    page_icon="🌱",
+    layout="centered",
+    initial_sidebar_state="auto"
+)
+
+# Custom CSS
+st.markdown("""
+<style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+    html, body, [class*="css"] {
+        font-family: 'Poppins', sans-serif;
+    }
+
+    /* Background Pattern (Subtle Agriculture Theme) */
+    .stApp {
+        background-color: #FFFFFF; /* Base background */
+        background-image: radial-gradient(#2E8B57 0.5px, transparent 0.5px), radial-gradient(#2E8B57 0.5px, #F0FFF0 0.5px);
+        background-size: 20px 20px;
+        background-position: 0 0, 10px 10px;
+        color: #262730; /* Text Color */
+    }
+
+    /* Sidebar Background */
+    [data-testid="stSidebar"] {
+        background-color: #F0FFF0; /* Secondary Background */
+        border-right: 1px solid #2E8B57;
+    }
+
+    /* Menyembunyikan elemen bawaan Streamlit yang tidak perlu */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    
+    /* Modifikasi tombol agar lebih estetik */
+    .stButton>button {
+        width: 100%;
+        border-radius: 12px;
+        background-color: #2E8B57; /* Primary Color */
+        color: white;
+        font-weight: 600;
+        border: none;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #267345;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+    }
+    
+    /* Input Fields Focus Border */
+    .stTextInput > div > div > input:focus {
+        border-color: #2E8B57;
+        box-shadow: 0 0 0 1px #2E8B57;
+    }
+
+    /* Chat Bubble Styling */
+    [data-testid="stChatMessage"] {
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 15px;
+        padding: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid #e0e0e0;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # Try to load .env file, but pass if module not found (Streamlit Cloud handles secrets differently)
 try:
     from dotenv import load_dotenv
@@ -23,7 +96,7 @@ except Exception as e:
 def get_shop_info():
     # Static Info (Selalu tersedia)
     base_info = """
-Nama Toko: Toko Tani A
+Nama Toko: Toko Tani Suka Maju
 Alamat: Jl. Raya Pertanian No. 123, Desa Subur
 Jam Operasional: Senin - Sabtu, 08:00 - 17:00 WIB
 Kontak: 0812-3456-7890
@@ -84,10 +157,10 @@ Untuk produk, sampaikan permohonan maaf bahwa sistem sedang gangguan.
 Error details: {e}
 """
 
-st.title("Chatbot Toko Tani A (Supabase Connected)")
+st.title("Chatbot Toko Tani Suka Maju")
 
-with st.chat_message("assistant"):
-    st.write("Selamat Datang di Toko Tani A. Ada yang bisa Saya Bantu?")
+with st.chat_message("assistant", avatar="👨‍🌾"):
+    st.write("Selamat Datang di Toko Tani Suka Maju. Ada yang bisa Saya Bantu?")
 
 # Configure the Gemini API
 try:
@@ -112,7 +185,18 @@ def process_message(prompt):
     st.session_state.messages.append({"role": "user", "content": prompt})
     
     try:
-        response = model.generate_content(prompt)
+        # 1. Convert Streamlit history to Gemini history format
+        gemini_history = []
+        for msg in st.session_state.messages[:-1]: # Exclude the just-added prompt
+            role = "user" if msg["role"] == "user" else "model"
+            gemini_history.append({"role": role, "parts": [msg["content"]]})
+            
+        # 2. Start Chat Session with History
+        chat = model.start_chat(history=gemini_history)
+        
+        # 3. Send the new message
+        response = chat.send_message(prompt)
+        
         # Add assistant response to history
         st.session_state.messages.append({"role": "assistant", "content": response.text})
     except Exception as e:
@@ -125,22 +209,17 @@ if st.button("ℹ️ Informasi Toko (Jam, Alamat, Kontak)"):
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
+    avatar = "👨‍🌾" if message["role"] == "assistant" else "👤"
+    with st.chat_message(message["role"], avatar=avatar):
         st.markdown(message["content"])
 
 # React to user input
 if prompt := st.chat_input("Apa yang ingin Anda tanyakan?"):
     # Display user message in chat message container
-    st.chat_message("user").markdown(prompt)
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
-
-    try:
-        response = model.generate_content(prompt)
-        # Display assistant response in chat message container
-        with st.chat_message("assistant"):
-            st.markdown(response.text)
-        # Add assistant response to chat history
-        st.session_state.messages.append({"role": "assistant", "content": response.text})
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
+    st.chat_message("user", avatar="👤").markdown(prompt)
+    
+    # Process message (ini akan handle logic chat dengan memori)
+    process_message(prompt)
+    
+    # Force rerun agar pesan terakhir muncul (karena process_message ubah session state tapi loop display sudah lewat)
+    st.rerun()
