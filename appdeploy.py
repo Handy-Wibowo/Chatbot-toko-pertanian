@@ -17,8 +17,18 @@ st.markdown("""
     /* Import Google Fonts */
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
 
+    /* Force Light Mode Variables */
+    :root {
+        --primary-color: #2E8B57 !important;
+        --background-color: #FFFFFF !important;
+        --secondary-background-color: #F0FFF0 !important;
+        --text-color: #262730 !important;
+        --font: 'Poppins', sans-serif !important;
+    }
+
     html, body, [class*="css"] {
         font-family: 'Poppins', sans-serif;
+        color: #262730 !important; /* Force text color */
     }
 
     /* Background Pattern (Subtle Agriculture Theme) */
